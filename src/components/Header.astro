@@ -85,7 +85,7 @@ const isFirstLoad = Astro.cookies.get("hasLoaded")?.value !== "true";
             id="menu-items"
             class:list={[
               "mt-4 grid w-44 grid-cols-2 place-content-center gap-2",
-              "[&>li>a]:block [&>li>a]:px-4 [&>li>a]:py-3 [&>li>a]:text-center [&>li>a]:font-medium [&>li>a]:hover:text-accent sm:[&>li>a]:px-1 sm:[&>li>a]:py-1",
+              "[&>li>a]:block [&>li>a]:px-4 [&>li>a]:py-3 [&>li>a]:text-center [&>li>a]:font-medium [&>li>a]:hover:text-accent sm:[&>li>a]:px-2 sm:[&>li>a]:py-1",
               "menu-closed",
               "mx-auto",
               "sm:mt-0 sm:flex sm:w-auto sm:gap-y-0 md:gap-x-5",
@@ -106,32 +106,73 @@ const isFirstLoad = Astro.cookies.get("hasLoaded")?.value !== "true";
             </li>
             <li class="col-span-2">
               <a
-                href="/stats"
-                class:list={{ "active-nav": isActive("/stats") }}
-              >
-                统计
-              </a>
-            </li>
-            <li class="col-span-2">
-              <a
                 href="/about"
                 class:list={{ "active-nav": isActive("/about") }}
               >
                 关于
               </a>
             </li>
-            {
-              SITE.showTimeline && (
-                <li class="col-span-2">
-                  <a
-                    href="/timeline"
-                    class:list={{ "active-nav": isActive("/timeline") }}
-                  >
-                    时间线
+            <!-- 次要导航：在 ≥sm 桌面端折叠进“更多”菜单；保留这些元素用于小屏（sm:hidden 放在克隆项上） -->
+            <li class="col-span-2 sm:hidden">
+              <a
+                href="/stats"
+                class:list={{ "active-nav": isActive("/stats") }}
+              >
+                统计
+              </a>
+            </li>
+            <li class="col-span-2 sm:hidden">
+              <a
+                href="/friends"
+                class:list={{ "active-nav": isActive("/friends") }}
+              >
+                友链
+              </a>
+            </li>
+            { SITE.showTimeline && (
+              <li class="col-span-2 sm:hidden">
+                <a
+                  href="/timeline"
+                  class:list={{ "active-nav": isActive("/timeline") }}
+                >
+                  时间线
+                </a>
+              </li>
+            ) }
+            <!-- 更多菜单触发器：仅在 ≥sm 显示，结构与其它导航项保持一致（li > a） -->
+            <li class="relative hidden sm:block">
+              <a
+                id="more-btn"
+                href="#" role="button"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="more-menu"
+                title="更多导航"
+              >更多</a>
+              <ul
+                id="more-menu"
+                class="content-card--low-opacity absolute right-0 top-full z-40 mt-2 w-40 origin-top-right rounded-md p-2 text-sm shadow-lg transition-all duration-150 focus:outline-none"
+                data-open="false"
+              >
+                <li>
+                  <a href="/stats" class:list={["block rounded px-3 py-2 hover:bg-accent/10 hover:text-accent", { "active-nav": isActive("/stats") }]}>
+                    统计
                   </a>
                 </li>
-              )
-            }
+                <li>
+                  <a href="/friends" class:list={["block rounded px-3 py-2 hover:bg-accent/10 hover:text-accent", { "active-nav": isActive("/friends") }]}>
+                    友链
+                  </a>
+                </li>
+                { SITE.showTimeline && (
+                  <li>
+                    <a href="/timeline" class:list={["block rounded px-3 py-2 hover:bg-accent/10 hover:text-accent", { "active-nav": isActive("/timeline") }]}>
+                      时间线
+                    </a>
+                  </li>
+                ) }
+              </ul>
+            </li>
             {
               SITE.showArchives && (
                 <li class="col-span-2">
@@ -191,103 +232,163 @@ const isFirstLoad = Astro.cookies.get("hasLoaded")?.value !== "true";
 </header>
 
 <script>
-  function toggleNav() {
-    const menuBtn = document.querySelector("#menu-btn") as HTMLButtonElement;
-    const menuItems = document.querySelector("#menu-items") as HTMLElement;
-    const menuIcon = document.querySelector("#menu-icon");
-    const closeIcon = document.querySelector("#close-icon");
+  function getNavRefs() {
+    return {
+      menuBtn: document.querySelector('#menu-btn') as HTMLButtonElement | null,
+      menuItems: document.querySelector('#menu-items') as HTMLElement | null,
+      menuIcon: document.querySelector('#menu-icon') as HTMLElement | null,
+      closeIcon: document.querySelector('#close-icon') as HTMLElement | null,
+    };
+  }
 
+  function calculateMenuHeight(menuItems: HTMLElement): number {
+    const original = {
+      display: menuItems.style.display,
+      visibility: menuItems.style.visibility,
+      position: menuItems.style.position,
+      maxHeight: menuItems.style.maxHeight,
+      opacity: menuItems.style.opacity,
+      className: menuItems.className,
+    };
+    menuItems.className = menuItems.className.replace(/menu-\w+/g, '');
+    menuItems.style.visibility = 'hidden';
+    menuItems.style.position = 'absolute';
+    menuItems.style.maxHeight = 'none';
+    menuItems.style.opacity = '1';
+    menuItems.style.display = 'block';
+    const height = menuItems.scrollHeight;
+    // 恢复
+    menuItems.className = original.className;
+    menuItems.style.display = original.display;
+    menuItems.style.visibility = original.visibility;
+    menuItems.style.position = original.position;
+    menuItems.style.maxHeight = original.maxHeight;
+    menuItems.style.opacity = original.opacity;
+    return height;
+  }
+
+  function openMenu(context?: {skipIconToggle?: boolean}) {
+    const { menuBtn, menuItems, menuIcon, closeIcon } = getNavRefs();
     if (!menuBtn || !menuItems || !menuIcon || !closeIcon) return;
-
-    // 计算菜单的实际高度
-    function calculateMenuHeight(): number {
-      // 临时显示菜单以计算高度
-      const originalDisplay = menuItems.style.display;
-      const originalVisibility = menuItems.style.visibility;
-      const originalPosition = menuItems.style.position;
-      const originalMaxHeight = menuItems.style.maxHeight;
-      const originalOpacity = menuItems.style.opacity;
-      const originalClass = menuItems.className;
-
-      // 移除所有菜单状态类，设置为可见但不可交互
-      menuItems.className = menuItems.className.replace(/menu-\w+/g, "");
-      menuItems.style.visibility = "hidden";
-      menuItems.style.position = "absolute";
-      menuItems.style.maxHeight = "none";
-      menuItems.style.opacity = "1";
-      menuItems.style.display = "block";
-
-      const height = menuItems.scrollHeight;
-
-      // 恢复原始状态
-      menuItems.className = originalClass;
-      menuItems.style.display = originalDisplay;
-      menuItems.style.visibility = originalVisibility;
-      menuItems.style.position = originalPosition;
-      menuItems.style.maxHeight = originalMaxHeight;
-      menuItems.style.opacity = originalOpacity;
-
-      return height;
+    if (menuItems.classList.contains('menu-open')) return; // 已是展开
+    const targetHeight = calculateMenuHeight(menuItems);
+    menuItems.classList.remove('menu-closed');
+    menuItems.style.maxHeight = '0px';
+    menuItems.offsetHeight; // 强制重绘
+    menuItems.style.maxHeight = `${targetHeight}px`;
+    menuItems.classList.add('menu-open');
+    menuBtn.setAttribute('aria-expanded','true');
+    menuBtn.setAttribute('aria-label','Close Menu');
+    if (!context?.skipIconToggle) {
+      menuIcon.classList.add('hidden');
+      closeIcon.classList.remove('hidden');
     }
+  }
 
-    menuBtn.addEventListener("click", () => {
-      const isExpanded = menuBtn.getAttribute("aria-expanded") === "true";
+  function closeMenu(context?: {skipIconToggle?: boolean, animate?: boolean}) {
+    const { menuBtn, menuItems, menuIcon, closeIcon } = getNavRefs();
+    if (!menuBtn || !menuItems || !menuIcon || !closeIcon) return;
+    if (!menuItems.classList.contains('menu-open')) return; // 已是关闭
+    const currentHeight = menuItems.scrollHeight;
+    menuItems.style.maxHeight = `${currentHeight}px`;
+    menuItems.offsetHeight; // 强制重绘
+    menuItems.classList.remove('menu-open');
+    if (context?.animate !== false) {
+      menuItems.classList.add('menu-closing');
+      menuItems.classList.remove('menu-closing');
+    }
+    menuItems.classList.add('menu-closed');
+    menuBtn.setAttribute('aria-expanded','false');
+    menuBtn.setAttribute('aria-label','Open Menu');
+    menuItems.style.maxHeight = '';
+    if (!context?.skipIconToggle) {
+      menuIcon.classList.remove('hidden');
+      closeIcon.classList.add('hidden');
+    }
+  }
 
-      if (isExpanded) {
-        // 收起菜单 - 先设置当前高度，然后过渡到0
-        const currentHeight = menuItems.scrollHeight;
-        menuItems.style.maxHeight = `${currentHeight}px`;
-
-        // 强制重绘
-        menuItems.offsetHeight;
-
-        menuItems.classList.remove("menu-open");
-        menuItems.classList.add("menu-closing");
-
-        menuItems.classList.remove("menu-closing");
-        menuItems.classList.add("menu-closed");
-        menuBtn.setAttribute("aria-expanded", "false");
-        menuBtn.setAttribute("aria-label", "Open Menu");
-        // 清除内联样式
-        menuItems.style.maxHeight = "";
-      } else {
-        // 展开菜单 - 先设置为0，然后过渡到目标高度
-        const targetHeight = calculateMenuHeight();
-
-        // 先移除closed状态并设置高度为0
-        menuItems.classList.remove("menu-closed");
-        menuItems.style.maxHeight = "0px";
-
-        // 强制重绘
-        menuItems.offsetHeight;
-
-        // 设置目标高度并添加open状态
-        menuItems.style.maxHeight = `${targetHeight}px`;
-        menuItems.classList.add("menu-open");
-
-        menuBtn.setAttribute("aria-expanded", "true");
-        menuBtn.setAttribute("aria-label", "Close Menu");
-      }
-
-      menuIcon.classList.toggle("hidden");
-      closeIcon.classList.toggle("hidden");
+  function bindNavToggle() {
+    const { menuBtn } = getNavRefs();
+    if (!menuBtn) return;
+    menuBtn.addEventListener('click', () => {
+      const expanded = menuBtn.getAttribute('aria-expanded') === 'true';
+      if (expanded) closeMenu(); else openMenu();
     });
-
-    // 监听窗口大小变化，如果菜单是展开状态则重新计算高度
+    // resize 时如果展开则更新高度
     let resizeTimer: number;
-    window.addEventListener("resize", () => {
+    window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
-        if (menuItems.classList.contains("menu-open")) {
-          const newHeight = calculateMenuHeight();
+        const { menuItems } = getNavRefs();
+        if (menuItems && menuItems.classList.contains('menu-open')) {
+          const newHeight = calculateMenuHeight(menuItems);
           menuItems.style.maxHeight = `${newHeight}px`;
         }
       }, 100);
     });
   }
 
-  toggleNav();
-  document.addEventListener("astro:after-swap", toggleNav);
+  function initNav() {
+    bindNavToggle();
+  }
+
+  initNav();
+  document.addEventListener('astro:after-swap', initNav);
+
+  // 更多菜单逻辑（桌面端）
+  function initMoreMenu(){
+    const moreBtn = document.getElementById('more-btn');
+    const moreMenu = document.getElementById('more-menu');
+    if(!moreBtn || !moreMenu) return;
+
+    let open = false;
+    const close = () => {
+      if(!open) return;
+      open = false;
+      moreBtn.setAttribute('aria-expanded','false');
+      moreMenu.dataset.open = 'false';
+    };
+    const show = () => {
+      if(open) return;
+      open = true;
+      moreBtn.setAttribute('aria-expanded','true');
+      moreMenu.dataset.open = 'true';
+    };
+    moreBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      open ? close() : show();
+    });
+    document.addEventListener('click', (e) => {
+      if(!(e.target instanceof Node)) return;
+      if(!moreMenu.contains(e.target) && e.target !== moreBtn) close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape') close();
+    });
+    // 页面切换后关闭
+    document.addEventListener('astro:before-swap', close);
+    window.addEventListener('resize', () => {
+      // 进入移动端时强制关闭
+      if(window.innerWidth < 640) close();
+    });
+  }
+  initMoreMenu();
+  document.addEventListener('astro:after-swap', initMoreMenu);
+
+  // 小屏幕下：切换主题后若导航菜单处于展开状态，自动收起
+  // 小屏幕下：切换主题后若导航菜单处于展开状态，自动收起（复用 closeMenu）
+  function attachAutoCollapseOnThemeChange(){
+    const themeBtn = document.getElementById('theme-btn');
+    if (!themeBtn) return;
+    themeBtn.addEventListener('click', () => {
+      if (window.innerWidth >= 640) return;
+      closeMenu();
+    });
+  };
+  document.addEventListener("astro:after-swap", attachAutoCollapseOnThemeChange);
+  document.addEventListener("astro:page-load", attachAutoCollapseOnThemeChange);
+
 
   // 进度指示器逻辑
   function initLoadingIndicator() {
@@ -396,5 +497,18 @@ const isFirstLoad = Astro.cookies.get("hasLoaded")?.value !== "true";
       max-height: none !important;
       margin-top: 0 !important;
     }
+  }
+
+  /* 更多菜单动画 */
+  #more-menu {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px) scale(.98);
+    transition: opacity .14s ease, transform .14s ease;
+  }
+  #more-menu[data-open="true"] {
+    pointer-events: auto;
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 </style>

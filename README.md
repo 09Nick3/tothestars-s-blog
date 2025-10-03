@@ -47,12 +47,18 @@
 ### :microscope: v0.6.0 加入
 
 - [x] 性能优化
-- [x] 使用 [LXGW](https://github.com/lxgw/LxgwWenKai) 字体
 - [x] 新增时间线页面
 - [x] 添加全局回顶按钮
 
 ![手机端性能测试](./mobile-performance.png)
 ![电脑端性能测试](./desktop-performance.png)
+
+### :microscope: v1.0.0 加入
+
+- [x] 细节优化
+- [x] Mermaid 图表暗色支持
+- [x] 友情链接页面加入
+- [x] Giscus 评论区集成
 
 ## :computer: 本地调试
 

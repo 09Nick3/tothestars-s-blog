@@ -28,19 +28,25 @@ const { noMarginTop = false } = Astro.props;
 
     <div class="space-y-1 flex justify-center flex-col text-center">
       <div class="flex flex-col md:flex-row justify-center items-center gap-1 md:gap-2">
-        <div class="text-muted-foreground">
-          Copyright &#169; {currentYear}
-          {author}
-        </div>
-      </div>
-      <div class="flex flex-col md:flex-row justify-center items-center gap-1 md:gap-2">
         <div>
-          由 <LinkButton
+          由 <img
+              src="https://astro.build/favicon.svg"
+              alt="Filing Icon"
+              style="width: 16px"
+              class="inline-block"
+            />
+          <LinkButton
+            class="flex items-center underline decoration-dashed underline-offset-4 hover:text-accent"
+            href="https://astro.build"
+          >
+            Astro
+          </LinkButton> 和 <LinkButton
             class="underline decoration-dashed underline-offset-4 hover:text-accent"
             href="https://github.com/hazuki-keatsu/aero-paper"
           >
-            AeroPaper
-          </LinkButton> 强力驱动
+            AeroPaper {SITE.version ? `v${SITE.version}` : ""}
+          </LinkButton>
+          强力驱动
         </div>
         <span class="hidden md:inline">&nbsp;|&nbsp;</span>
         <div>
@@ -50,6 +56,14 @@ const { noMarginTop = false } = Astro.props;
           >
             CC BY-NC
           </LinkButton> 协议发布
+        </div>
+      </div>
+      <div
+        class="flex flex-col items-center justify-center gap-1 md:flex-row md:gap-2"
+      >
+        <div class="text-muted-foreground">
+          Copyright &#169; {SITE.setupTime.substring(0, 4)} - {currentYear}
+          {author}
         </div>
       </div>
     </div>
